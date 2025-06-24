@@ -1,21 +1,21 @@
 package com.example.transsurabayaapp.viewmodel
 
+import android.util.Log
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.transsurabayaapp.data.Bus
-import com.example.transsurabayaapp.data.BusRoute
-import com.example.transsurabayaapp.data.BusStop
-import com.example.transsurabayaapp.data.Ticket
-import com.example.transsurabayaapp.data.UserProfile
+import com.example.transsurabayaapp.data.*
+import com.example.transsurabayaapp.data.local.TicketEntity
+import com.example.transsurabayaapp.data.local.UserEntity
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.util.UUID
+import java.util.*
 import kotlin.random.Random
 
-class TransSurabayaViewModel : ViewModel() {
+class TransSurabayaViewModel(private val repository: TransSurabayaRepository) : ViewModel() {
     private val _selectedRoute = mutableStateOf<BusRoute?>(null)
     val selectedRoute: State<BusRoute?> = _selectedRoute
 
@@ -34,32 +34,34 @@ class TransSurabayaViewModel : ViewModel() {
     private val _paymentProcessing = mutableStateOf(false)
     val paymentProcessing: State<Boolean> = _paymentProcessing
 
-    // --- MANAJEMEN PENGGUNA DAN AUTENTIKASI ---
-
-    // Daftar pengguna dummy yang disimpan secara lokal.
-    // Di aplikasi nyata, ini akan berasal dari database atau API.
-    // UserProfile sekarang harus memiliki `id` dan `password`.
-    private val _registeredUsers = mutableStateOf(listOf(
-        UserProfile(
-            id = "user-1",
-            name = "Arek Suroboyo",
-            email = "arek@suroboyo.com",
-            password = "password123", // Password untuk login dummy
-            totalTrips = 7,
-            freeRideCount = 0
-        )
-    ))
-
-    // State untuk menyimpan pengguna yang sedang login (bisa null jika tidak ada)
-    private val _loggedInUser = mutableStateOf<UserProfile?>(null)
-    val loggedInUser: State<UserProfile?> = _loggedInUser
-
-    // State untuk menampilkan pesan error saat login/register
     private val _authError = mutableStateOf<String?>(null)
     val authError: State<String?> = _authError
 
+    private val _loggedInUser = mutableStateOf<UserProfile?>(null)
+    val loggedInUser: State<UserProfile?> = _loggedInUser
 
-    // Dummy Data dengan koordinat yang lebih realistis untuk Surabaya
+    private val _showPaymentSuccess = mutableStateOf(false)
+    val showPaymentSuccess: State<Boolean> = _showPaymentSuccess
+
+    private fun UserEntity.toUserProfile() = UserProfile(
+        id = this.id,
+        name = this.name,
+        email = this.email,
+        password = this.password,
+        totalTrips = this.totalTrips,
+        freeRideCount = this.freeRideCount
+    )
+
+    fun hidePaymentSuccess() {
+        _showPaymentSuccess.value = false
+
+        _selectedFromStop.value = null
+        _selectedToStop.value = null
+        _selectedRoute.value = null
+        _paymentProcessing.value = false
+    }
+
+    // Dummy data untuk rute dan bus
     val routes = listOf(
         BusRoute(
             code = "R1",
@@ -202,87 +204,87 @@ class TransSurabayaViewModel : ViewModel() {
         _buses.value = updatedBuses
     }
 
-    // --- FUNGSI BARU UNTUK AUTENTIKASI ---
+    // Fungsi untuk login
     fun login(email: String, password: String) {
-        val user = _registeredUsers.value.find { it.email.equals(email, ignoreCase = true) && it.password == password }
-        if (user != null) {
-            _loggedInUser.value = user
-            _authError.value = null
-        } else {
-            _authError.value = "Email atau password salah."
+        viewModelScope.launch(Dispatchers.IO) {
+            val userEntity = repository.login(email, password)
+            if (userEntity != null) {
+                _loggedInUser.value = userEntity.toUserProfile()
+                loadTicketsForUser(userEntity.id)
+                _authError.value = null
+            } else {
+                _authError.value = "Email atau password salah."
+            }
         }
     }
 
+    // Fungsi untuk register
     fun register(name: String, email: String, password: String) {
-        if (name.isBlank() || email.isBlank() || password.isBlank()) {
-            _authError.value = "Semua kolom harus diisi."
-            return
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val newUserEntity = repository.registerUser(name, email, password)
+                _loggedInUser.value = newUserEntity.toUserProfile()
+                _authError.value = null
+            } catch (e: Exception) {
+                _authError.value = "Registrasi gagal: ${e.message}"
+            }
         }
-        if (_registeredUsers.value.any { it.email.equals(email, ignoreCase = true) }) {
-            _authError.value = "Email sudah terdaftar."
-            return
-        }
-        val newUser = UserProfile(
-            id = "user-${UUID.randomUUID()}",
-            name = name,
-            email = email,
-            password = password,
-            totalTrips = 0,
-            freeRideCount = 0
-        )
-        _registeredUsers.value += newUser
-        _loggedInUser.value = newUser // Otomatis login setelah registrasi
-        _authError.value = null
     }
 
     fun logout() {
         _loggedInUser.value = null
+        _tickets.value = emptyList()
     }
 
     fun clearAuthError() {
         _authError.value = null
     }
 
-    fun selectRoute(route: BusRoute) {
-        _selectedRoute.value = route
-        _selectedFromStop.value = null
-        _selectedToStop.value = null
+    // Fungsi untuk memuat tiket dari database
+    private fun loadTicketsForUser(userId: Int) {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.getTicketsForUser(userId).collect { tickets ->
+                _tickets.value = tickets
+            }
+        }
     }
 
-    fun deselectRoute() {
-        _selectedRoute.value = null
-    }
-
-    fun selectFromStop(stop: BusStop) {
-        _selectedFromStop.value = stop
-    }
-
-    fun selectToStop(stop: BusStop) {
-        _selectedToStop.value = stop
-    }
-
-    fun calculatePrice(): Int {
-        return 5000 // Harga tetap
-    }
-
+    // Fungsi untuk membeli tiket
     suspend fun purchaseTicket(fromStop: BusStop, toStop: BusStop, route: BusRoute) {
-        val currentUser = _loggedInUser.value ?: return // Keluar jika tidak ada pengguna yang login
+        Log.d("ViewModel_Purchase", "Attempting to purchase ticket...")
+        val currentUser = _loggedInUser.value ?: return
         _paymentProcessing.value = true
-        delay(2000) // Simulasi proses pembayaran
+
+        // Simulasi proses pembayaran
+        delay(2000)
 
         val useFreeRide = currentUser.freeRideCount > 0
+        val price = if (useFreeRide) 0 else calculatePrice()
 
         val newTicket = Ticket(
             id = UUID.randomUUID().toString(),
             routeCode = route.code,
             fromStop = fromStop.name,
             toStop = toStop.name,
-            price = if (useFreeRide) 0 else calculatePrice(),
+            price = price,
             purchaseTime = System.currentTimeMillis(),
             isFree = useFreeRide
         )
-        _tickets.value += newTicket
 
+        // Simpan tiket ke database
+        val ticketEntity = TicketEntity(
+            id = newTicket.id,
+            userId = currentUser.id,
+            routeCode = newTicket.routeCode,
+            fromStop = newTicket.fromStop,
+            toStop = newTicket.toStop,
+            price = newTicket.price,
+            purchaseTime = newTicket.purchaseTime,
+            isFree = newTicket.isFree
+        )
+        repository.purchaseTicket(ticketEntity)
+
+        // Update user: totalTrips dan freeRideCount
         var updatedTotalTrips = currentUser.totalTrips
         var updatedFreeRideCount = currentUser.freeRideCount
 
@@ -290,29 +292,38 @@ class TransSurabayaViewModel : ViewModel() {
             updatedFreeRideCount--
         } else {
             updatedTotalTrips++
-            // Dapatkan 1 tiket gratis setiap 10 perjalanan berbayar
-            if (updatedTotalTrips > 0 && updatedTotalTrips % 10 == 0) {
+            if (updatedTotalTrips % 10 == 0) {
                 updatedFreeRideCount++
             }
         }
 
-        // Perbarui objek pengguna
         val updatedUser = currentUser.copy(
             totalTrips = updatedTotalTrips,
             freeRideCount = updatedFreeRideCount
         )
+
+        // Update user di database
+        val updatedUserEntity = UserEntity(
+            id = updatedUser.id,
+            name = updatedUser.name,
+            email = updatedUser.email,
+            password = updatedUser.password,
+            totalTrips = updatedUser.totalTrips,
+            freeRideCount = updatedUser.freeRideCount
+        )
+        repository.updateUser(updatedUserEntity)
+
+        // Update state
         _loggedInUser.value = updatedUser
+        loadTicketsForUser(updatedUser.id)
 
-        // Perbarui juga pengguna di dalam daftar _registeredUsers
-        val userIndex = _registeredUsers.value.indexOfFirst { it.id == currentUser.id }
-        if (userIndex != -1) {
-            val updatedList = _registeredUsers.value.toMutableList()
-            updatedList[userIndex] = updatedUser
-            _registeredUsers.value = updatedList
-        }
-
+        // Tampilkan animasi sukses
+        _showPaymentSuccess.value = true
         _paymentProcessing.value = false
+
     }
+
+    fun calculatePrice(): Int = 5000
 
     fun getEstimatedArrival(route: BusRoute, stopId: String): String {
         val busesOnRoute = _buses.value.filter { it.routeCode == route.code }
@@ -341,5 +352,23 @@ class TransSurabayaViewModel : ViewModel() {
         } else {
             "N/A"
         }
+    }
+
+    fun selectRoute(route: BusRoute) {
+        _selectedRoute.value = route
+        _selectedFromStop.value = null
+        _selectedToStop.value = null
+    }
+
+    fun deselectRoute() {
+        _selectedRoute.value = null
+    }
+
+    fun selectFromStop(stop: BusStop) {
+        _selectedFromStop.value = stop
+    }
+
+    fun selectToStop(stop: BusStop) {
+        _selectedToStop.value = stop
     }
 }

@@ -1,5 +1,8 @@
 package com.example.transsurabayaapp.ui.screens.booking
 
+import android.util.Log
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -21,7 +24,9 @@ import androidx.navigation.NavController
 import com.example.transsurabayaapp.data.BusStop
 import com.example.transsurabayaapp.ui.icon.LocalCardGiftcard
 import com.example.transsurabayaapp.ui.icon.LocalPayment
+import com.example.transsurabayaapp.ui.screens.PaymentSuccessScreen
 import com.example.transsurabayaapp.viewmodel.TransSurabayaViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -31,110 +36,148 @@ fun BookingScreen(viewModel: TransSurabayaViewModel, navController: NavControlle
     val selectedFromStop by viewModel.selectedFromStop
     val selectedToStop by viewModel.selectedToStop
     val paymentProcessing by viewModel.paymentProcessing
+
     val userProfile by viewModel.loggedInUser
+
     val coroutineScope = rememberCoroutineScope()
     val freeRides = userProfile?.freeRideCount ?: 0
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        TopAppBar(
-            title = { Text("Beli Tiket", fontWeight = FontWeight.Bold, color = Color.White) },
-            navigationIcon = {
-                IconButton(onClick = { navController.navigateUp() }) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Kembali", tint = Color.White)
-                }
-            },
-            colors = TopAppBarDefaults.topAppBarColors(containerColor = selectedRoute?.color ?: Color(0xFF1976D2))
-        )
+    val showPaymentSuccess by viewModel.showPaymentSuccess
+    val paymentSuccessAlpha = remember { Animatable(0f) }
 
-        selectedRoute?.let { route ->
-            Column(modifier = Modifier.fillMaxSize()) {
-                LazyColumn(
-                    modifier = Modifier.weight(1f).padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    item {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = route.color.copy(alpha = 0.1f)),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Column(modifier = Modifier.padding(16.dp)) {
-                                Text("Rute: ${route.code} - ${route.name}", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                                Text("${route.origin} → ${route.destination}", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f), fontSize = 14.sp)
-                            }
-                        }
+//    // payment success
+//    LaunchedEffect(showPaymentSuccess) {
+//        if (showPaymentSuccess) {
+//            paymentSuccessAlpha.animateTo(1f, animationSpec = tween(500))
+//            delay(3000)
+//
+//        }
+//    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            TopAppBar(
+                title = { Text("Beli Tiket", fontWeight = FontWeight.Bold, color = Color.White) },
+                navigationIcon = {
+                    IconButton(onClick = { navController.navigateUp() }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Kembali", tint = Color.White)
                     }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = selectedRoute?.color ?: Color(0xFF1976D2))
+            )
 
-                    if (freeRides > 0) {
+            selectedRoute?.let { route ->
+                Column(modifier = Modifier.fillMaxSize()) {
+                    LazyColumn(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
                         item {
                             Card(
                                 modifier = Modifier.fillMaxWidth(),
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFF4CAF50).copy(alpha = 0.1f)),
+                                colors = CardDefaults.cardColors(containerColor = route.color.copy(alpha = 0.1f)),
                                 shape = RoundedCornerShape(12.dp)
                             ) {
-                                Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(LocalCardGiftcard, contentDescription = "Reward", tint = Color(0xFF4CAF50), modifier = Modifier.size(24.dp))
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Column {
-                                        Text("🎉 Tiket Gratis Tersedia!", fontWeight = FontWeight.Bold, color = Color(0xFF4CAF50))
-                                        Text("Anda memiliki $freeRides tiket gratis", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    Text("Rute: ${route.code} - ${route.name}", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                    Text("${route.origin} → ${route.destination}", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f), fontSize = 14.sp)
+                                }
+                            }
+                        }
+
+                        if (freeRides > 0) {
+                            item {
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = CardDefaults.cardColors(containerColor = Color(0xFF4CAF50).copy(alpha = 0.1f)),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(LocalCardGiftcard, contentDescription = "Reward", tint = Color(0xFF4CAF50), modifier = Modifier.size(24.dp))
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Column {
+                                            Text("🎉 Tiket Gratis Tersedia!", fontWeight = FontWeight.Bold, color = Color(0xFF4CAF50))
+                                            Text("Anda memiliki $freeRides tiket gratis", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+                                        }
                                     }
                                 }
                             }
                         }
-                    }
 
-                    item { Text("Pilih Halte Asal", fontWeight = FontWeight.Bold, fontSize = 16.sp) }
-                    items(route.stops) { stop ->
-                        StopSelectionCard(stop = stop, isSelected = selectedFromStop == stop, onClick = { viewModel.selectFromStop(stop) }, routeColor = route.color, estimatedTime = viewModel.getEstimatedArrival(route, stop.id))
-                    }
+                        item { Text("Pilih Halte Asal", fontWeight = FontWeight.Bold, fontSize = 16.sp) }
+                        items(route.stops) { stop ->
+                            StopSelectionCard(
+                                stop = stop,
+                                isSelected = selectedFromStop == stop,
+                                onClick = { viewModel.selectFromStop(stop) },
+                                routeColor = route.color,
+                                estimatedTime = viewModel.getEstimatedArrival(route, stop.id)
+                            )
+                        }
 
-                    if (selectedFromStop != null) {
-                        item { Text("Pilih Halte Tujuan", fontWeight = FontWeight.Bold, fontSize = 16.sp) }
-                        items(route.stops.filter { it.id != selectedFromStop!!.id }) { stop ->
-                            StopSelectionCard(stop = stop, isSelected = selectedToStop == stop, onClick = { viewModel.selectToStop(stop) }, routeColor = route.color, estimatedTime = "N/A")
+                        if (selectedFromStop != null) {
+                            item { Text("Pilih Halte Tujuan", fontWeight = FontWeight.Bold, fontSize = 16.sp) }
+                            items(route.stops.filter { it.id != selectedFromStop!!.id }) { stop ->
+                                StopSelectionCard(
+                                    stop = stop,
+                                    isSelected = selectedToStop == stop,
+                                    onClick = { viewModel.selectToStop(stop) },
+                                    routeColor = route.color,
+                                    estimatedTime = "N/A"
+                                )
+                            }
                         }
                     }
-                }
 
-                if (selectedFromStop != null && selectedToStop != null) {
-                    Card(
-                        modifier = Modifier.fillMaxWidth().padding(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text("Harga:")
-                                Text(if (freeRides > 0) "GRATIS" else "Rp ${viewModel.calculatePrice()}", fontWeight = FontWeight.Bold, color = route.color, fontSize = 18.sp)
-                            }
-                            Button(
-                                onClick = {
-                                    if (!paymentProcessing) {
-                                        coroutineScope.launch {
-                                            viewModel.purchaseTicket(selectedFromStop!!, selectedToStop!!, route)
-                                            // Navigate to tickets screen after purchase
-                                            navController.navigate("tickets") {
-                                                // Clear back stack up to home
-                                                popUpTo("home")
+                    if (selectedFromStop != null && selectedToStop != null) {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    Text("Harga:")
+                                    Text(
+                                        if (freeRides > 0) "GRATIS" else "Rp ${viewModel.calculatePrice()}",
+                                        fontWeight = FontWeight.Bold,
+                                        color = route.color,
+                                        fontSize = 18.sp
+                                    )
+                                }
+                                Button(
+                                    onClick = {
+                                        if (!paymentProcessing) {
+                                            coroutineScope.launch {
+                                                viewModel.purchaseTicket(selectedFromStop!!, selectedToStop!!, route)
                                             }
                                         }
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(56.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = route.color),
+                                    enabled = !paymentProcessing,
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    if (paymentProcessing) {
+                                        CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White, strokeWidth = 2.dp)
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text("Memproses...")
+                                    } else {
+                                        Icon(LocalPayment, contentDescription = null)
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            if (freeRides > 0) "Gunakan Tiket Gratis" else "Bayar Sekarang",
+                                            fontSize = 16.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
                                     }
-                                },
-                                modifier = Modifier.fillMaxWidth().height(56.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = route.color),
-                                enabled = !paymentProcessing,
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
-                                if (paymentProcessing) {
-                                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White, strokeWidth = 2.dp)
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Memproses...")
-                                } else {
-                                    Icon(LocalPayment, contentDescription = null)
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(if (freeRides > 0) "Gunakan Tiket Gratis" else "Bayar Sekarang", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
@@ -142,21 +185,56 @@ fun BookingScreen(viewModel: TransSurabayaViewModel, navController: NavControlle
                 }
             }
         }
+
+        // pembayaran berhasil
+        if (showPaymentSuccess) {
+            PaymentSuccessScreen(modifier = Modifier.fillMaxSize())
+            LaunchedEffect(Unit) {
+                Log.d("BookingScreen", "LaunchedEffect: Payment success screen shown. Starting delay...")
+                kotlinx.coroutines.delay(3000)
+                Log.d("BookingScreen", "LaunchedEffect: Delay finished. Hiding payment screen and navigating to 'tickets'. Current NavController: $navController")
+                //viewModel.hidePaymentSuccess()
+                try {
+                    navController.navigate("tickets") {
+                        popUpTo("booking") { inclusive = true }
+                    }
+                    Log.d("BookingScreen", "LaunchedEffect: Navigation to 'tickets' called successfully.")
+                } catch (e: Exception) {
+                    Log.e("BookingScreen", "LaunchedEffect: Error during navigation to 'tickets'", e)
+                }
+            }
+        } else {
+            Log.d("BookingScreen", "showPaymentSuccess is false, not showing payment success screen or running effect.")
+        }
     }
 }
 
 @Composable
-fun StopSelectionCard(stop: BusStop, isSelected: Boolean, onClick: () -> Unit, routeColor: Color, estimatedTime: String) {
+fun StopSelectionCard(
+    stop: BusStop,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    routeColor: Color,
+    estimatedTime: String
+) {
     Card(
-        modifier = Modifier.fillMaxWidth().clickable { onClick() },
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
         colors = CardDefaults.cardColors(containerColor = if (isSelected) routeColor.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
         border = if (isSelected) BorderStroke(2.dp, routeColor) else BorderStroke(1.dp, Color.Transparent),
         shape = RoundedCornerShape(8.dp)
     ) {
-        Row(modifier = Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(stop.name, fontWeight = FontWeight.Medium, fontSize = 16.sp)
-                if (estimatedTime != "N/A"){
+                if (estimatedTime != "N/A") {
                     Text("Estimasi: $estimatedTime", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f), fontSize = 14.sp)
                 }
             }
@@ -166,3 +244,4 @@ fun StopSelectionCard(stop: BusStop, isSelected: Boolean, onClick: () -> Unit, r
         }
     }
 }
+

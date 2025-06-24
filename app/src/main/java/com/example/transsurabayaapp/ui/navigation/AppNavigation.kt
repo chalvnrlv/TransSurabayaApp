@@ -16,19 +16,19 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.example.transsurabayaapp.ui.screens.LoginScreen // Pastikan import ini ada
-import com.example.transsurabayaapp.ui.screens.RegisterScreen // Pastikan import ini ada
+import com.example.transsurabayaapp.ui.screens.LoginScreen
+import com.example.transsurabayaapp.ui.screens.RegisterScreen
 import com.example.transsurabayaapp.ui.screens.booking.BookingScreen
 import com.example.transsurabayaapp.ui.screens.home.HomeScreen
 import com.example.transsurabayaapp.ui.screens.map.MapScreen
 import com.example.transsurabayaapp.ui.screens.profile.ProfileScreen
 import com.example.transsurabayaapp.ui.screens.routedetail.RouteDetailScreen
-import com.example.transsurabayaapp.ui.screens.tickets.TicketScreen
+import com.example.transsurabayaapp.ui.screens.TicketScreen
 import com.example.transsurabayaapp.viewmodel.TransSurabayaViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AppNavigation() {
+fun AppNavigation(viewModel: TransSurabayaViewModel) {
     val navController = rememberNavController()
     val viewModel: TransSurabayaViewModel = viewModel()
     val bottomNavItems = getBottomNavItems()
@@ -75,7 +75,7 @@ fun AppNavHost(
 ) {
     NavHost(
         navController = navController,
-        startDestination = "login", // Titik awal adalah login
+        startDestination = "login",
         modifier = Modifier.padding(innerPadding),
         enterTransition = { fadeIn(animationSpec = tween(300)) },
         exitTransition = { fadeOut(animationSpec = tween(300)) }

@@ -267,7 +267,7 @@ fun MapScreen(viewModel: TransSurabayaViewModel) {
             }
         }
 
-        // Dialog informasi bus
+        // informasi bus
         if (showDialog != null) {
             val bus = showDialog!!
             val route = allRoutes.find { it.code == bus.routeCode }

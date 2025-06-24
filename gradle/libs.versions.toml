@@ -1,6 +1,6 @@
 [versions]
-# Versi-versi stabil yang sudah terbukti ada
-agp = "8.11.0"
+agp = "8.10.1"
+core = "3.5.2"
 kotlin = "2.0.0"
 coreKtx = "1.16.0"
 junit = "4.13.2"
@@ -8,14 +8,22 @@ junitVersion = "1.2.1"
 espressoCore = "3.6.1"
 lifecycleRuntimeKtx = "2.9.1"
 activityCompose = "1.10.1"
-composeBom = "2025.06.01" # Versi BOM stabil terbaru
+composeBom = "2025.06.01"
 lifecycleViewmodelCompose = "2.9.1"
 materialIconsExtended = "1.7.8"
 navigationCommonAndroid = "2.9.0"
 navigationRuntimeAndroid = "2.9.0"
 navigationComposeAndroid = "2.9.0"
+roomCompiler = "2.7.2"
+roomRuntime = "2.7.2"
+zxingAndroidEmbedded = "4.3.0"
 
 [libraries]
+#room
+core = { module = "com.google.zxing:core", version.ref = "core" }
+room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "roomRuntime" }
+room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "roomCompiler" }
+
 # AndroidX Core & Lifecycle
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycleRuntimeKtx" }
@@ -44,6 +52,7 @@ androidx-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-man
 androidx-navigation-common-android = { group = "androidx.navigation", name = "navigation-common-android", version.ref = "navigationCommonAndroid" }
 androidx-navigation-runtime-android = { group = "androidx.navigation", name = "navigation-runtime-android", version.ref = "navigationRuntimeAndroid" }
 androidx-navigation-compose-android = { group = "androidx.navigation", name = "navigation-compose-android", version.ref = "navigationComposeAndroid" }
+zxing-android-embedded = { module = "com.journeyapps:zxing-android-embedded", version.ref = "zxingAndroidEmbedded" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

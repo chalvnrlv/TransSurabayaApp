@@ -1,9 +1,7 @@
 package com.example.transsurabayaapp.data
 
 import androidx.compose.ui.graphics.Color
-import java.util.UUID
 
-// Data Classes
 data class BusRoute(
     val code: String,
     val name: String,
@@ -39,12 +37,11 @@ data class Ticket(
     val isFree: Boolean = false
 )
 
-// --- Versi UserProfile yang Sudah Diperbaiki (Hanya Satu Deklarasi) ---
 data class UserProfile(
-    val id: String = UUID.randomUUID().toString(), // ID unik untuk setiap user
+    val id: Int,
     val name: String,
     val email: String,
-    val password: String, // Ditambahkan untuk login
+    val password: String,
     val totalTrips: Int,
     val freeRideCount: Int
 )
