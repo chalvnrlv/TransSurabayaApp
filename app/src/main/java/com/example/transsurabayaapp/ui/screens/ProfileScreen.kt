@@ -8,11 +8,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ExitToApp // Import ditambahkan
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect // Import ditambahkan
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -23,14 +25,31 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import com.example.transsurabayaapp.ui.icon.*
 import com.example.transsurabayaapp.viewmodel.TransSurabayaViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(viewModel: TransSurabayaViewModel, navController: NavController) {
-    val userProfile by viewModel.userProfile
+    // Diubah: Menggunakan loggedInUser yang nullable
+    val userProfile by viewModel.loggedInUser
     val tickets by viewModel.tickets
+
+    // Jika pengguna null (misalnya, setelah logout), kembali ke halaman login
+    if (userProfile == null) {
+        LaunchedEffect(Unit) {
+            navController.navigate("login") {
+                popUpTo(navController.graph.findStartDestination().id) {
+                    inclusive = true
+                }
+            }
+        }
+        return // Hentikan render sisa composable
+    }
+
+    // Gunakan variabel non-null untuk kemudahan
+    val currentUser = userProfile!!
 
     Column(modifier = Modifier.fillMaxSize()) {
         TopAppBar(
@@ -64,8 +83,9 @@ fun ProfileScreen(viewModel: TransSurabayaViewModel, navController: NavControlle
                             Icon(Icons.Default.Person, contentDescription = "Profile", tint=Color.White, modifier=Modifier.size(40.dp))
                         }
                         Spacer(modifier = Modifier.height(16.dp))
-                        Text(userProfile.name, fontWeight = FontWeight.Bold, fontSize = 20.sp)
-                        Text(userProfile.email, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f), fontSize = 14.sp)
+                        // Diubah: Menggunakan data dari currentUser
+                        Text(currentUser.name, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                        Text(currentUser.email, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f), fontSize = 14.sp)
                     }
                 }
             }
@@ -84,8 +104,9 @@ fun ProfileScreen(viewModel: TransSurabayaViewModel, navController: NavControlle
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceAround
                         ) {
-                            StatisticItem(icon = LocalDirectionsBus, title = "Total Perjalanan", value = "${userProfile.totalTrips}", color = Color(0xFF2196F3))
-                            StatisticItem(icon = LocalCardGiftcard, title = "Tiket Gratis", value = "${userProfile.freeRideCount}", color = Color(0xFF4CAF50))
+                            // Diubah: Menggunakan data dari currentUser
+                            StatisticItem(icon = LocalDirectionsBus, title = "Total Perjalanan", value = "${currentUser.totalTrips}", color = Color(0xFF2196F3))
+                            StatisticItem(icon = LocalCardGiftcard, title = "Tiket Gratis", value = "${currentUser.freeRideCount}", color = Color(0xFF4CAF50))
                             StatisticItem(icon = LocalConfirmationNumber, title = "Total Tiket", value = "${tickets.size}", color = Color(0xFFFF9800))
                         }
                     }
@@ -107,21 +128,29 @@ fun ProfileScreen(viewModel: TransSurabayaViewModel, navController: NavControlle
                             icon = Icons.Default.Notifications,
                             title = "Notifikasi",
                             subtitle = "Atur notifikasi kedatangan bus",
-                            onClick = { /* TODO: Implementasi navigasi ke layar pengaturan notifikasi */ }
+                            onClick = { /* TODO: Implementasi */ }
                         )
                         HorizontalDivider(modifier = Modifier.padding(horizontal=16.dp))
                         SettingItem(
                             icon = LocalHelp,
                             title = "Bantuan",
                             subtitle = "FAQ dan dukungan",
-                            onClick = { /* TODO: Implementasi navigasi ke layar bantuan */ }
+                            onClick = { /* TODO: Implementasi */ }
                         )
                         HorizontalDivider(modifier = Modifier.padding(horizontal=16.dp))
                         SettingItem(
                             icon = Icons.Default.Info,
                             title = "Tentang Aplikasi",
                             subtitle = "Versi 1.0.0",
-                            onClick = { /* TODO: Implementasi dialog atau layar 'Tentang' */ }
+                            onClick = { /* TODO: Implementasi */ }
+                        )
+                        HorizontalDivider(modifier = Modifier.padding(horizontal=16.dp))
+                        // Ditambahkan: Tombol Logout
+                        SettingItem(
+                            icon = Icons.AutoMirrored.Filled.ExitToApp,
+                            title = "Logout",
+                            subtitle = "Keluar dari sesi Anda saat ini",
+                            onClick = { viewModel.logout() }
                         )
                     }
                 }
@@ -129,7 +158,7 @@ fun ProfileScreen(viewModel: TransSurabayaViewModel, navController: NavControlle
         }
     }
 }
-
+// Composable StatisticItem dan SettingItem tidak ada perubahan
 @Composable
 fun StatisticItem(
     icon: ImageVector,

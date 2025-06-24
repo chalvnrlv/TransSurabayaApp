@@ -31,18 +31,33 @@ class TransSurabayaViewModel : ViewModel() {
     private val _tickets = mutableStateOf<List<Ticket>>(emptyList())
     val tickets: State<List<Ticket>> = _tickets
 
-    private val _userProfile = mutableStateOf(
+    private val _paymentProcessing = mutableStateOf(false)
+    val paymentProcessing: State<Boolean> = _paymentProcessing
+
+    // --- MANAJEMEN PENGGUNA DAN AUTENTIKASI ---
+
+    // Daftar pengguna dummy yang disimpan secara lokal.
+    // Di aplikasi nyata, ini akan berasal dari database atau API.
+    // UserProfile sekarang harus memiliki `id` dan `password`.
+    private val _registeredUsers = mutableStateOf(listOf(
         UserProfile(
+            id = "user-1",
             name = "Arek Suroboyo",
             email = "arek@suroboyo.com",
+            password = "password123", // Password untuk login dummy
             totalTrips = 7,
             freeRideCount = 0
         )
-    )
-    val userProfile: State<UserProfile> = _userProfile
+    ))
 
-    private val _paymentProcessing = mutableStateOf(false)
-    val paymentProcessing: State<Boolean> = _paymentProcessing
+    // State untuk menyimpan pengguna yang sedang login (bisa null jika tidak ada)
+    private val _loggedInUser = mutableStateOf<UserProfile?>(null)
+    val loggedInUser: State<UserProfile?> = _loggedInUser
+
+    // State untuk menampilkan pesan error saat login/register
+    private val _authError = mutableStateOf<String?>(null)
+    val authError: State<String?> = _authError
+
 
     // Dummy Data dengan koordinat yang lebih realistis untuk Surabaya
     val routes = listOf(
@@ -98,7 +113,6 @@ class TransSurabayaViewModel : ViewModel() {
         )
     )
 
-    // State untuk tracking pergerakan bus individual
     private val busStates = mutableMapOf<String, BusMovementState>()
 
     private data class BusMovementState(
@@ -120,7 +134,6 @@ class TransSurabayaViewModel : ViewModel() {
             repeat(3) { i ->
                 val busId = "${route.code}-B${i + 1}"
                 val randomStopIndex = Random.nextInt(0, route.stops.size)
-
                 busList.add(
                     Bus(
                         id = busId,
@@ -130,8 +143,6 @@ class TransSurabayaViewModel : ViewModel() {
                         estimatedArrival = System.currentTimeMillis() + Random.nextLong(300000, 1800000)
                     )
                 )
-
-                // Initialize movement state
                 busStates[busId] = BusMovementState(
                     currentStopIndex = randomStopIndex,
                     isMoving = Random.nextBoolean(),
@@ -145,7 +156,7 @@ class TransSurabayaViewModel : ViewModel() {
     private fun startBusSimulation() {
         viewModelScope.launch {
             while (true) {
-                delay(3000) // Update setiap 3 detik untuk simulasi yang lebih smooth
+                delay(3000)
                 updateBusPositions()
             }
         }
@@ -156,42 +167,31 @@ class TransSurabayaViewModel : ViewModel() {
         val updatedBuses = _buses.value.map { bus ->
             val route = routes.find { it.code == bus.routeCode } ?: return@map bus
             val busState = busStates[bus.id] ?: return@map bus
-
             val timeDelta = currentTime - busState.lastUpdateTime
             busState.lastUpdateTime = currentTime
-
             when {
-                // Bus sedang berhenti di halte
                 !busState.isMoving && busState.stayDuration > 0 -> {
                     busState.stayDuration -= timeDelta
                     if (busState.stayDuration <= 0) {
-                        // Mulai bergerak setelah berhenti cukup lama
                         busState.isMoving = true
                         busState.movementProgress = 0f
                     }
                     bus.copy(isMoving = false)
                 }
-
-                // Bus sedang bergerak
                 busState.isMoving -> {
-                    busState.movementProgress += (timeDelta / 12000f) // 12 detik untuk satu segmen
-
+                    busState.movementProgress += (timeDelta / 12000f)
                     if (busState.movementProgress >= 1f) {
-                        // Sampai di halte berikutnya
                         busState.currentStopIndex = (busState.currentStopIndex + 1) % route.stops.size
                         busState.movementProgress = 0f
                         busState.isMoving = false
-                        busState.stayDuration = Random.nextLong(3000, 10000) // Berhenti 3-10 detik
+                        busState.stayDuration = Random.nextLong(3000, 10000)
                     }
-
                     bus.copy(
                         currentStopIndex = busState.currentStopIndex,
                         isMoving = true,
                         estimatedArrival = currentTime + Random.nextLong(300000, 1800000)
                     )
                 }
-
-                // Bus mulai bergerak
                 else -> {
                     busState.isMoving = true
                     busState.movementProgress = 0f
@@ -199,8 +199,48 @@ class TransSurabayaViewModel : ViewModel() {
                 }
             }
         }
-
         _buses.value = updatedBuses
+    }
+
+    // --- FUNGSI BARU UNTUK AUTENTIKASI ---
+    fun login(email: String, password: String) {
+        val user = _registeredUsers.value.find { it.email.equals(email, ignoreCase = true) && it.password == password }
+        if (user != null) {
+            _loggedInUser.value = user
+            _authError.value = null
+        } else {
+            _authError.value = "Email atau password salah."
+        }
+    }
+
+    fun register(name: String, email: String, password: String) {
+        if (name.isBlank() || email.isBlank() || password.isBlank()) {
+            _authError.value = "Semua kolom harus diisi."
+            return
+        }
+        if (_registeredUsers.value.any { it.email.equals(email, ignoreCase = true) }) {
+            _authError.value = "Email sudah terdaftar."
+            return
+        }
+        val newUser = UserProfile(
+            id = "user-${UUID.randomUUID()}",
+            name = name,
+            email = email,
+            password = password,
+            totalTrips = 0,
+            freeRideCount = 0
+        )
+        _registeredUsers.value += newUser
+        _loggedInUser.value = newUser // Otomatis login setelah registrasi
+        _authError.value = null
+    }
+
+    fun logout() {
+        _loggedInUser.value = null
+    }
+
+    fun clearAuthError() {
+        _authError.value = null
     }
 
     fun selectRoute(route: BusRoute) {
@@ -222,15 +262,15 @@ class TransSurabayaViewModel : ViewModel() {
     }
 
     fun calculatePrice(): Int {
-        return 5000 // Fixed price
+        return 5000 // Harga tetap
     }
 
     suspend fun purchaseTicket(fromStop: BusStop, toStop: BusStop, route: BusRoute) {
+        val currentUser = _loggedInUser.value ?: return // Keluar jika tidak ada pengguna yang login
         _paymentProcessing.value = true
-        delay(2000) // Simulate payment processing
+        delay(2000) // Simulasi proses pembayaran
 
-        val currentFreeRides = _userProfile.value.freeRideCount
-        val useFreeRide = currentFreeRides > 0
+        val useFreeRide = currentUser.freeRideCount > 0
 
         val newTicket = Ticket(
             id = UUID.randomUUID().toString(),
@@ -241,25 +281,35 @@ class TransSurabayaViewModel : ViewModel() {
             purchaseTime = System.currentTimeMillis(),
             isFree = useFreeRide
         )
-
         _tickets.value += newTicket
 
-        var updatedTotalPaidTrips = _userProfile.value.totalTrips
-        var updatedFreeRideCount = _userProfile.value.freeRideCount
+        var updatedTotalTrips = currentUser.totalTrips
+        var updatedFreeRideCount = currentUser.freeRideCount
 
         if (useFreeRide) {
-            updatedFreeRideCount -= 1
+            updatedFreeRideCount--
         } else {
-            updatedTotalPaidTrips += 1
-            if (updatedTotalPaidTrips > 0 && updatedTotalPaidTrips % 10 == 0) {
-                updatedFreeRideCount += 1
+            updatedTotalTrips++
+            // Dapatkan 1 tiket gratis setiap 10 perjalanan berbayar
+            if (updatedTotalTrips > 0 && updatedTotalTrips % 10 == 0) {
+                updatedFreeRideCount++
             }
         }
 
-        _userProfile.value = _userProfile.value.copy(
-            totalTrips = updatedTotalPaidTrips,
+        // Perbarui objek pengguna
+        val updatedUser = currentUser.copy(
+            totalTrips = updatedTotalTrips,
             freeRideCount = updatedFreeRideCount
         )
+        _loggedInUser.value = updatedUser
+
+        // Perbarui juga pengguna di dalam daftar _registeredUsers
+        val userIndex = _registeredUsers.value.indexOfFirst { it.id == currentUser.id }
+        if (userIndex != -1) {
+            val updatedList = _registeredUsers.value.toMutableList()
+            updatedList[userIndex] = updatedUser
+            _registeredUsers.value = updatedList
+        }
 
         _paymentProcessing.value = false
     }
@@ -286,7 +336,6 @@ class TransSurabayaViewModel : ViewModel() {
             } else {
                 (route.stops.size - nearestBus.currentStopIndex) + targetStopIndex
             }
-
             val estimatedMinutes = stopDifference * 3 + Random.nextInt(0, 3)
             if (estimatedMinutes == 0) "Tiba" else "$estimatedMinutes menit"
         } else {

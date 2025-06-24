@@ -31,7 +31,8 @@ import java.util.*
 @Composable
 fun TicketScreen(viewModel: TransSurabayaViewModel) {
     val tickets by viewModel.tickets
-    val userProfile by viewModel.userProfile
+    // Diubah: Menggunakan loggedInUser yang nullable
+    val userProfile by viewModel.loggedInUser
 
     Column(modifier = Modifier.fillMaxSize()) {
         TopAppBar(
@@ -39,79 +40,83 @@ fun TicketScreen(viewModel: TransSurabayaViewModel) {
             colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF1976D2))
         )
 
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF4CAF50).copy(alpha = 0.1f)),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Status Reward", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Total Perjalanan (berbayar):")
-                            Text("${userProfile.totalTrips}", fontWeight = FontWeight.Bold)
-                        }
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Tiket Gratis Tersisa:")
-                            Text("${userProfile.freeRideCount}", fontWeight = FontWeight.Bold, color = Color(0xFF4CAF50))
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        val progress = if(userProfile.totalTrips > 0) (userProfile.totalTrips % 10) / 10f else 0f
-                        Text(
-                            "Progress ke reward berikutnya: ${userProfile.totalTrips % 10}/10",
-                            fontSize = 14.sp,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                        )
-                        LinearProgressIndicator(
-                            progress = { progress },
-                            modifier = Modifier.fillMaxWidth().clip(CircleShape),
-                            color = Color(0xFF4CAF50),
-                            trackColor = Color(0xFF4CAF50).copy(alpha = 0.2f),
-                        )
-                    }
-                }
-            }
-
-            if (tickets.isEmpty()) {
+        // Ditambahkan: Null check untuk memastikan pengguna sudah login
+        userProfile?.let { user ->
+            LazyColumn(
+                modifier = Modifier.fillMaxSize().padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
                 item {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF4CAF50).copy(alpha = 0.1f)),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Column(
-                            modifier = Modifier.fillMaxWidth().padding(32.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Icon(LocalConfirmationNumber, contentDescription = "Tidak ada tiket", modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f))
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Text("Belum ada riwayat tiket", fontSize = 18.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text("Status Reward", fontWeight = FontWeight.Bold, fontSize = 18.sp)
                             Spacer(modifier = Modifier.height(8.dp))
-                            Text("Beli tiket pertama Anda untuk melihatnya di sini", fontSize = 14.sp, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Total Perjalanan (berbayar):")
+                                // Diubah: Menggunakan data dari user
+                                Text("${user.totalTrips}", fontWeight = FontWeight.Bold)
+                            }
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Tiket Gratis Tersisa:")
+                                Text("${user.freeRideCount}", fontWeight = FontWeight.Bold, color = Color(0xFF4CAF50))
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            val progress = if(user.totalTrips > 0) (user.totalTrips % 10) / 10f else 0f
+                            Text(
+                                "Progress ke reward berikutnya: ${user.totalTrips % 10}/10",
+                                fontSize = 14.sp,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                            )
+                            LinearProgressIndicator(
+                                progress = { progress },
+                                modifier = Modifier.fillMaxWidth().clip(CircleShape),
+                                color = Color(0xFF4CAF50),
+                                trackColor = Color(0xFF4CAF50).copy(alpha = 0.2f),
+                            )
                         }
                     }
                 }
-            } else {
-                item {
-                    Text("Riwayat Tiket", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                }
-                items(tickets.sortedByDescending { it.purchaseTime }) { ticket ->
-                    TicketCard(ticket = ticket, viewModel = viewModel)
+
+                if (tickets.isEmpty()) {
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth().padding(32.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Icon(LocalConfirmationNumber, contentDescription = "Tidak ada tiket", modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f))
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text("Belum ada riwayat tiket", fontSize = 18.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text("Beli tiket pertama Anda untuk melihatnya di sini", fontSize = 14.sp, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+                            }
+                        }
+                    }
+                } else {
+                    item {
+                        Text("Riwayat Tiket", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    }
+                    items(tickets.sortedByDescending { it.purchaseTime }) { ticket ->
+                        TicketCard(ticket = ticket, viewModel = viewModel)
+                    }
                 }
             }
         }
     }
 }
-
+// Composable TicketCard tidak ada perubahan
 @Composable
 fun TicketCard(ticket: Ticket, viewModel: TransSurabayaViewModel) {
     val route = viewModel.routes.find { it.code == ticket.routeCode }
-    val dateFormat = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault())
+    val dateFormat = SimpleDateFormat("dd MMMizzi, HH:mm", Locale.getDefault())
 
     Card(
         modifier = Modifier.fillMaxWidth(),

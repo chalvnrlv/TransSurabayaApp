@@ -16,6 +16,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.transsurabayaapp.ui.screens.LoginScreen // Pastikan import ini ada
+import com.example.transsurabayaapp.ui.screens.RegisterScreen // Pastikan import ini ada
 import com.example.transsurabayaapp.ui.screens.booking.BookingScreen
 import com.example.transsurabayaapp.ui.screens.home.HomeScreen
 import com.example.transsurabayaapp.ui.screens.map.MapScreen
@@ -35,7 +37,6 @@ fun AppNavigation() {
         bottomBar = {
             val navBackStackEntry by navController.currentBackStackEntryAsState()
             val currentDestination = navBackStackEntry?.destination
-
             val isMainScreen = bottomNavItems.any { it.route == currentDestination?.route }
 
             AnimatedVisibility(
@@ -74,7 +75,7 @@ fun AppNavHost(
 ) {
     NavHost(
         navController = navController,
-        startDestination = "home",
+        startDestination = "login", // Titik awal adalah login
         modifier = Modifier.padding(innerPadding),
         enterTransition = { fadeIn(animationSpec = tween(300)) },
         exitTransition = { fadeOut(animationSpec = tween(300)) }
@@ -91,6 +92,9 @@ fun AppNavHost(
         val slideExitTransition: (AnimatedContentTransitionScope<*>.() -> ExitTransition) = {
             slideOutHorizontally(targetOffsetX = { -1000 }, animationSpec = tween(300))
         }
+
+        composable("login") { LoginScreen(viewModel, navController) }
+        composable("register") { RegisterScreen(viewModel, navController) }
 
         composable("home") { HomeScreen(viewModel, navController) }
         composable("map") { MapScreen(viewModel) }

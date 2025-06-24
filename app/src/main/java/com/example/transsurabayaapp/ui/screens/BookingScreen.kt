@@ -31,8 +31,9 @@ fun BookingScreen(viewModel: TransSurabayaViewModel, navController: NavControlle
     val selectedFromStop by viewModel.selectedFromStop
     val selectedToStop by viewModel.selectedToStop
     val paymentProcessing by viewModel.paymentProcessing
-    val userProfile by viewModel.userProfile
+    val userProfile by viewModel.loggedInUser
     val coroutineScope = rememberCoroutineScope()
+    val freeRides = userProfile?.freeRideCount ?: 0
 
     Column(modifier = Modifier.fillMaxSize()) {
         TopAppBar(
@@ -64,7 +65,7 @@ fun BookingScreen(viewModel: TransSurabayaViewModel, navController: NavControlle
                         }
                     }
 
-                    if (userProfile.freeRideCount > 0) {
+                    if (freeRides > 0) {
                         item {
                             Card(
                                 modifier = Modifier.fillMaxWidth(),
@@ -76,7 +77,7 @@ fun BookingScreen(viewModel: TransSurabayaViewModel, navController: NavControlle
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Column {
                                         Text("🎉 Tiket Gratis Tersedia!", fontWeight = FontWeight.Bold, color = Color(0xFF4CAF50))
-                                        Text("Anda memiliki ${userProfile.freeRideCount} tiket gratis", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+                                        Text("Anda memiliki $freeRides tiket gratis", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
                                     }
                                 }
                             }
@@ -106,7 +107,7 @@ fun BookingScreen(viewModel: TransSurabayaViewModel, navController: NavControlle
                         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                 Text("Harga:")
-                                Text(if (userProfile.freeRideCount > 0) "GRATIS" else "Rp ${viewModel.calculatePrice()}", fontWeight = FontWeight.Bold, color = route.color, fontSize = 18.sp)
+                                Text(if (freeRides > 0) "GRATIS" else "Rp ${viewModel.calculatePrice()}", fontWeight = FontWeight.Bold, color = route.color, fontSize = 18.sp)
                             }
                             Button(
                                 onClick = {
@@ -133,7 +134,7 @@ fun BookingScreen(viewModel: TransSurabayaViewModel, navController: NavControlle
                                 } else {
                                     Icon(LocalPayment, contentDescription = null)
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Text(if (userProfile.freeRideCount > 0) "Gunakan Tiket Gratis" else "Bayar Sekarang", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                                    Text(if (freeRides > 0) "Gunakan Tiket Gratis" else "Bayar Sekarang", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
